@@ -3,7 +3,7 @@
 <robot xmlns:xacro="http://ros.org/wiki/xacro" name="os1_64">
   <xacro:property name="PI" value="3.1415926535897931"/>
 
-  <xacro:macro name="os1_64" params="*origin parent:=base name:=ouster reduced:=true prefix:=/os1_cloud_node hz:=10 samples:=512 min_range:=0.8 max_range:=100 noise:=0.008 min_angle_v:=-16.6 max_angle_v:=16.6 gpu:=false">
+  <xacro:macro name="os1_64" params="*origin parent:=base name:=ouster reduced:=true prefix:=/os1_cloud_node hz:=10 samples:=512 min_range:=0.3 max_range:=90 noise:=0.008 min_angle_v:=-22.5 max_angle_v:=22.5 min_angle_h:=-180.0 max_angle_h:=180.0 gpu:=false">
 
     <!-- Conditional properties -->
     <xacro:if value="${reduced}">
@@ -29,7 +29,8 @@
 
     <link name="${name}_sensor">
       <inertial>
-        <mass value="0.425"/>
+        <!-- <mass value="0.425"/> -->
+        <mass value="0.00001"/>
         <origin xyz="0 0 0.03675" rpy="0 0 0" />
         <inertia ixx="0.000308429" ixy="0" ixz="0"
                  iyy="0.000308429" iyz="0" izz="0.00034589"/>
@@ -39,7 +40,7 @@
         <geometry>
           <cylinder radius="0.04350" length="0.07350"/>
         </geometry>
-      </collision>
+      </collision> 
       <visual name="lidar_visual">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
@@ -64,6 +65,7 @@
         <ray>
           <scan>
             <vertical>
+              <!-- <samples>64</samples> -->
               <samples>64</samples>
               <resolution>1</resolution>
               <min_angle>${min_angle_v*PI/180.0}</min_angle>
@@ -72,8 +74,8 @@
             <horizontal>
               <samples>${samples}</samples>
               <resolution>1</resolution>
-              <min_angle>-${PI}</min_angle>
-              <max_angle>${PI}</max_angle>
+              <min_angle>${min_angle_h*PI/180.0}</min_angle>
+              <max_angle>${max_angle_h*PI/180.0}</max_angle>
             </horizontal>
           </scan>
           <range>

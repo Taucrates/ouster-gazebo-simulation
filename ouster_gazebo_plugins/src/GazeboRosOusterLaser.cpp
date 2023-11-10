@@ -319,45 +319,47 @@ void GazeboRosOusterLaser::OnScan(ConstLaserScanStampedPtr& _msg) {
       // Range
       double r = _msg->scan().ranges(i + j * rangeCount);
 
-      // Noise
-      if (gaussian_noise_ > 0.0) {  // shouldn't it be compared to epsilon ?
-        r += gaussianKernel(0, gaussian_noise_);
-      } else if (gaussian_noise_ != -1.0) {
-        // Noise set by the datasheet
-        double g_noise = gaussianKernel(0, 1.);
-        if (r <= 2.) {
-          r += 0.03 * g_noise;
-        } else if (r <= 20.) {
-          r += 0.015 * g_noise;
-        } else if (r <= 60.) {
-          r += 0.03 * g_noise;
-        } else {
-          r += 0.1 * g_noise;
-        }
-      }
-
-      // Intensity
-      double intensity = _msg->scan().intensities(i + j * rangeCount);
-
-      // Get angles of ray to get xyz for point
-      double yAngle;
-      double pAngle;
-
-      if (rangeCount > 1) {
-        yAngle = i * yDiff / (rangeCount - 1) + minAngle.Radian();
-      } else {
-        yAngle = minAngle.Radian();
-      }
-
-      if (verticalRayCount > 1) {
-        pAngle =
-            j * pDiff / (verticalRangeCount - 1) + verticalMinAngle.Radian();
-      } else {
-        pAngle = verticalMinAngle.Radian();
-      }
-
       // pAngle is rotated by yAngle:
       if ((MIN_RANGE < r) && (r < MAX_RANGE)) {
+
+        // Noise
+        if (gaussian_noise_ > 0.0) {  // shouldn't it be compared to epsilon ?
+          r += gaussianKernel(0, gaussian_noise_);
+        } else if (gaussian_noise_ != -1.0) {
+          // Noise set by the datasheet
+          double g_noise = gaussianKernel(0, 1.);
+          if (r <= 2.) {
+            r += 0.03 * g_noise;
+          } else if (r <= 20.) {
+            r += 0.015 * g_noise;
+          } else if (r <= 60.) {
+            r += 0.03 * g_noise;
+          } else {
+            r += 0.1 * g_noise;
+          }
+        }
+
+        // Intensity
+        double intensity = _msg->scan().intensities(i + j * rangeCount);
+
+        // Get angles of ray to get xyz for point
+        double yAngle;
+        double pAngle;
+
+        if (rangeCount > 1) {
+          yAngle = i * yDiff / (rangeCount - 1) + minAngle.Radian();
+        } else {
+          yAngle = minAngle.Radian();
+        }
+
+        if (verticalRayCount > 1) {
+          pAngle =
+              j * pDiff / (verticalRangeCount - 1) + verticalMinAngle.Radian();
+        } else {
+          pAngle = verticalMinAngle.Radian();
+        }
+
+
         *((float*)(ptr + 0)) = (float)(r * cos(pAngle) * cos(yAngle));  // x
         *((float*)(ptr + 4)) = (float)(r * cos(pAngle) * sin(yAngle));  // y
 #if GAZEBO_MAJOR_VERSION > 2
@@ -375,14 +377,14 @@ void GazeboRosOusterLaser::OnScan(ConstLaserScanStampedPtr& _msg) {
         ptr += POINT_STEP;
       } else {  // if out of range, create a "NULL" point to keep the
                 // organization
-        *((float*)(ptr + 0)) = 0.;  // x
-        *((float*)(ptr + 4)) = 0.;  // y
+        *((float*)(ptr + 0)) = std::numeric_limits<float>::quiet_NaN();  // x
+        *((float*)(ptr + 4)) = std::numeric_limits<float>::quiet_NaN();  // y
 #if GAZEBO_MAJOR_VERSION > 2
-        *((float*)(ptr + 8)) = 0.;  // z
+        *((float*)(ptr + 8)) = std::numeric_limits<float>::quiet_NaN();  // z
 #else
-        *((float*)(ptr + 8)) = 0.;                 // z
+        *((float*)(ptr + 8)) = std::numeric_limits<float>::quiet_NaN();                 // z
 #endif
-        *((float*)(ptr + 16)) = 0.;  // I
+        *((float*)(ptr + 16)) = std::numeric_limits<float>::quiet_NaN();  // I
 #if GAZEBO_MAJOR_VERSION > 2
         *((uint16_t*)(ptr + 20)) = (uint16_t)j;  // ring
 #else
@@ -396,12 +398,16 @@ void GazeboRosOusterLaser::OnScan(ConstLaserScanStampedPtr& _msg) {
 
   // Populate message with number of valid points
   msg.point_step = POINT_STEP;
-  msg.row_step = (uint32_t)(ptr - msg.data.data());
-  msg.height = 1;
-  msg.width = msg.row_step / POINT_STEP;
+  // msg.row_step = (uint32_t)(ptr - msg.data.data());
+  msg.row_step = (uint32_t)(rangeCount * POINT_STEP);
+  // msg.height = 1;
+  // msg.width = msg.row_step / POINT_STEP;
+  msg.height = verticalRangeCount;
+  msg.width = rangeCount;
   msg.is_bigendian = false;
   msg.is_dense = true;
-  msg.data.resize(msg.row_step);  // Shrink to actual size
+  // msg.data.resize(msg.row_step);  // Shrink to actual size
+  msg.data.resize(POINT_STEP*msg.height*msg.width);
 
   // Publish output
   pub_.publish(msg);
